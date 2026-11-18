@@ -343,16 +343,91 @@ PINS = (
 )
 
 
+# ---------------------------------------------------------------- flags
+# Small programmatic flag chips (rectangles of colour, no assets, no
+# network). Drawn 40x26 next to the lead number, the way top 1 puts flag
+# chips in its Quad panel and cards. Each design is simplified but
+# recognisable at full size and still reads as a distinct coloured chip
+# at 300 px. A thin ink border makes the chip read on the paper.
+FLAG_W = 40
+FLAG_H = 26
+FLAG_GAP = 8
+
+SAFFRON = (255, 153, 51)
+INDIA_GREEN = (19, 136, 8)
+NAVY_FLAG = (0, 0, 128)
+UKR_BLUE = (0, 91, 187)
+UKR_YELLOW = (255, 213, 0)
+RUS_BLUE = (0, 57, 166)
+IRAN_GREEN = (0, 122, 61)
+IRAN_RED = (218, 0, 0)
+AUS_BLUE = (0, 40, 104)
+JAPAN_RED = (188, 0, 45)
+
+
+def _stripes(px, x, y, w, h, colors):
+    """Fill (x, y, w, h) with horizontal bands, one per colour."""
+    n = len(colors)
+    for i, c in enumerate(colors):
+        y0 = y + i * h // n
+        y1 = y + (i + 1) * h // n
+        fill_rect(px, x, y0, w, y1 - y0, c)
+
+
+def draw_flag(px, code, x, y):
+    """Draw one flag chip (FLAG_W x FLAG_H) at (x, y), with a border."""
+    w, h = FLAG_W, FLAG_H
+    if code == "JP":  # Japan: white field, red disc
+        fill_rect(px, x, y, w, h, WHITE)
+        disc(px, x + w // 2, y + h // 2, 6, JAPAN_RED)
+    elif code == "IN":  # India: saffron / white / green + navy wheel
+        _stripes(px, x, y, w, h, (SAFFRON, WHITE, INDIA_GREEN))
+        disc(px, x + w // 2, y + h // 2, 3, NAVY_FLAG)
+    elif code == "US":  # USA: red/white stripes + blue canton + stars
+        _stripes(px, x, y, w, h,
+                 (RED, WHITE, RED, WHITE, RED, WHITE, RED))
+        fill_rect(px, x, y, 17, 14, NAVY_FLAG)
+        for sx in (3, 8, 13):
+            for sy in (3, 8, 12):
+                set_px(px, x + sx, y + sy, WHITE)
+                set_px(px, x + sx + 1, y + sy, WHITE)
+    elif code == "AU":  # Australia: blue field, Union Jack canton, stars
+        fill_rect(px, x, y, w, h, AUS_BLUE)
+        cx, cy, cw, ch = x, y, 20, 13
+        fill_rect(px, cx, cy, cw, ch, WHITE)
+        line(px, cx, cy, cx + cw - 1, cy + ch - 1, RED, 1)
+        line(px, cx + cw - 1, cy, cx, cy + ch - 1, RED, 1)
+        fill_rect(px, cx + cw // 2 - 1, cy, 3, ch, RED)
+        fill_rect(px, cx, cy + ch // 2 - 1, cw, 3, RED)
+        for sx, sy in ((30, 8), (34, 18), (26, 20)):
+            disc(px, x + sx, y + sy, 2, WHITE)
+    elif code == "UA":  # Ukraine: blue over yellow
+        _stripes(px, x, y, w, h, (UKR_BLUE, UKR_YELLOW))
+    elif code == "RU":  # Russia: white / blue / red
+        _stripes(px, x, y, w, h, (WHITE, RUS_BLUE, RED))
+    elif code == "IR":  # Iran: green / white / red + red emblem dot
+        _stripes(px, x, y, w, h, (IRAN_GREEN, WHITE, IRAN_RED))
+        disc(px, x + w // 2, y + h // 2, 2, IRAN_RED)
+    # Thin border so the chip reads on paper.
+    hline(px, x, y, w, INK, 1)
+    hline(px, x, y + h - 1, w, INK, 1)
+    vline(px, x, y, h, INK, 1)
+    vline(px, x + w - 1, y, h, INK, 1)
+
+
 # ---------------------------------------------------------------- content
 # The day's stories. 10 pinned on the map + 10 one-liners = 20 stories.
 LEADS = (
-    # (pin number, headline lines, sub lines)
+    # (pin number, headline lines, sub lines, flag chips)
     (1, ("CRIMEA BRIDGE", "HIT"),
-     ("SECOND DAY OF STRIKES", "ON THE KERCH STRAIT")),
+     ("SECOND DAY OF STRIKES", "ON THE KERCH STRAIT"),
+     ("UA", "RU")),
     (2, ("IRAN DRONES,", "US STRIKE"),
-     ("DRONES HIT US RADAR", "IN BAHRAIN; US HITS BACK")),
+     ("DRONES HIT US RADAR", "IN BAHRAIN; US HITS BACK"),
+     ("IR", "US")),
     (3, ("QUAD MINERALS", "DEAL"),
-     ("TRUMP'S FIRST QUAD", "SUMMIT IN MANILA")),
+     ("TRUMP'S FIRST QUAD", "SUMMIT IN MANILA"),
+     ("US", "IN", "JP", "AU")),
 )
 
 NUMBERS = (
@@ -458,11 +533,16 @@ def draw_map(px):
 
 def draw_leads(px):
     cols = (32, 356, 680)
-    for i, (n, head, sub) in enumerate(LEADS):
+    for i, (n, head, sub, flags) in enumerate(LEADS):
         x = cols[i]
         fill_rect(px, x, 540, 30, 30, RED)
         draw_text(px, str(n), x + 15, 544, 3, WHITE, bold=True,
                   align="center")
+        # Flag chips next to the number, like top 1's Quad panel.
+        fx = x + 38
+        for code in flags:
+            draw_flag(px, code, fx, 540)
+            fx += FLAG_W + FLAG_GAP
         draw_text(px, head[0], x, 578, 4, INK, bold=True)
         draw_text(px, head[1], x, 610, 4, INK, bold=True)
         draw_text(px, sub[0], x, 646, 2, GREY)
